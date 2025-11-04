@@ -15,13 +15,7 @@ git clone https://github.com/Sufmax/ping_server.git
 cd ping_server
 ````
 
-2. Installer les dépendances Python (Flask et autres) :
-
-```bash
-pip install -r requirements.txt
-```
-
-*Si `requirements.txt` n'existe pas, installer Flask directement* :
+2. Installer les dépendances Python (Flask)  Flask directement :
 
 ```bash
 pip install flask
