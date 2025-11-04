@@ -42,7 +42,7 @@ ou l’IP/port configuré.
 * id : `admin`
 * mot de passe : `Mo7D3P455353CUR153`
 
-> Lors de la première connexion, l’utilisateur peut modifier le mot de passe.
+> L’utilisateur une fois connecté peut modifier le mot de passe.
 
 ## 🧩 Explications détaillées
 
