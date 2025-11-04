@@ -1,11 +1,9 @@
 # Ping Server
 
-Une solution simple pour monitorer des adresses IP via des pings automatiques, avec interface web et authentification.
+## 🚀 Description rapide
 
-## 🚀 Petite description
-
-Ce projet fournit un serveur Flask qui ping en continu des adresses IP configurables et expose les résultats via une interface web ou des API sécurisées.  
-Il inclut un système d'authentification minimaliste, la possibilité de changer le mot de passe et un processus de ping asynchrone sécurisé.
+Ce projet fournit un serveur Flask qui ping en continu des adresses IP configurables et expose les résultats via une interface web.  
+Il inclut un système d'authentification minimaliste et sécurisé (par hashage et limite de requêtes à la seconde), la possibilité de changer le mot de passe et un processus de ping asynchrone sécurisé.
 
 ## 🛠️ Installation
 
