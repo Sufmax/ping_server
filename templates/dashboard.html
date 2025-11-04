@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard - Ping App</title>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background-color: #1a1a1a; color: #e0e0e0; margin: 0; padding: 2rem; }
+        .container { max-width: 900px; margin: 0 auto; }
+        h1, h2 { color: #f5f5f5; border-bottom: 1px solid #444; padding-bottom: 0.5rem; }
+        a { color: #4dabf7; }
+        header { display: flex; justify-content: space-between; align-items: center; }
+        .card { background: #2c2c2c; border-radius: 8px; padding: 1.5rem; margin-bottom: 1.5rem; box-shadow: 0 4px 8px rgba(0,0,0,0.3); }
+        .ping-list .ping-item { display: grid; grid-template-columns: 2fr 1fr 1fr 1fr 2fr; align-items: center; padding: 1rem; border-bottom: 1px solid #444; }
+        .ping-list .ping-item:last-child { border-bottom: none; }
+        .status { padding: 0.2rem 0.6rem; border-radius: 12px; font-weight: bold; font-size: 0.8em; }
+        .status.success { background-color: #28a745; color: white; }
+        .status.failure { background-color: #dc3545; color: white; }
+        .status.running { background-color: #007bff; color: white; }
+        .status.stopped { background-color: #6c757d; color: white; }
+        form { display: flex; flex-wrap: wrap; gap: 1rem; align-items: flex-end; }
+        input, select, button { padding: 0.5rem; border-radius: 4px; border: 1px solid #555; background: #333; color: #e0e0e0; font-size: 1rem; }
+        button { cursor: pointer; background: #007bff; border-color: #007bff; color: white; }
+        .form-group { display: flex; flex-direction: column; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Dashboard Ping</h1>
+            <a href="/logout">Déconnexion</a>
+        </header>
+
+        <div class="card">
+            <h2>Pings en cours</h2>
+            <div id="ping-list" class="ping-list">
+                <!-- Les pings seront insérés ici par JavaScript -->
+            </div>
+        </div>
+
+        <div class="card">
+            <h2>Ajouter ou Modifier un Ping</h2>
+            <form id="mod-ping-form">
+                <div class="form-group">
+                    <label for="target">Cible (IP/Domaine)</label>
+                    <input type="text" id="target" required>
+                </div>
+                <div class="form-group">
+                    <label for="mode">Mode</label>
+                    <select id="mode">
+                        <option value="continuous">Continu</option>
+                        <option value="single">Unique</option>
+                        <option value="custom">Personnalisé</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="interval">Intervalle (sec)</label>
+                    <input type="number" id="interval" value="5" min="1" required>
+                </div>
+                <div class="form-group">
+                    <label for="target_count">Nombre (si perso)</label>
+                    <input type="number" id="target_count" value="10" min="1">
+                </div>
+                <button type="submit">Ajouter / Mettre à jour</button>
+            </form>
+        </div>
+        
+        <div class="card">
+            <h2>Sécurité</h2>
+            <form id="change-password-form">
+                <div class="form-group">
+                    <label for="new_password">Nouveau mot de passe</label>
+                    <input type="password" id="new_password" required minlength="12">
+                </div>
+                <button type="submit">Changer le mot de passe</button>
+            </form>
+            <p id="password-message" style="margin-top: 1rem;"></p>
+        </div>
+    </div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        const pingList = document.getElementById('ping-list');
+        const modPingForm = document.getElementById('mod-ping-form');
+        const changePasswordForm = document.getElementById('change-password-form');
+        const passwordMessage = document.getElementById('password-message');
+
+        // --- Fonction pour récupérer et afficher les pings ---
+        const fetchAndRenderPings = async () => {
+            try {
+                const response = await fetch('/api/get-pings');
+                if (!response.ok) {
+                    // Si la session expire, rediriger vers le login
+                    if (response.status === 401) window.location.href = '/login';
+                    throw new Error(`Erreur réseau: ${response.statusText}`);
+                }
+                const pings = await response.json();
+                
+                pingList.innerHTML = ''; // Vider la liste
+                if (Object.keys(pings).length === 0) {
+                    pingList.innerHTML = '<p>Aucun ping configuré.</p>';
+                }
+
+                for (const target in pings) {
+                    const job = pings[target];
+                    const item = document.createElement('div');
+                    item.className = 'ping-item';
+                    
+                    let resultClass = job.last_result.toLowerCase();
+                    let statusClass = job.status.toLowerCase();
+
+                    item.innerHTML = `
+                        <strong>${target}</strong>
+                        <span><span class="status ${statusClass}">${job.status}</span></span>
+                        <span><span class="status ${resultClass}">${job.last_result}</span></span>
+                        <span>${job.count} / ${job.mode === 'custom' ? job.target_count : (job.mode === 'single' ? 1 : '∞')}</span>
+                        <div>
+                            <button onclick="controlPing('${target}', 'start')">▶</button>
+                            <button onclick="controlPing('${target}', 'stop')">■</button>
+                            <button onclick="controlPing('${target}', 'remove')">❌</button>
+                        </div>
+                    `;
+                    pingList.appendChild(item);
+                }
+            } catch (error) {
+                console.error("Impossible de récupérer les pings:", error);
+                pingList.innerHTML = '<p style="color: #dc3545;">Erreur de connexion au serveur.</p>';
+            }
+        };
+
+        // --- Fonction pour envoyer des commandes (start, stop, remove) ---
+        window.controlPing = async (target, action) => {
+            await fetch('/api/mod-ping', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ target, action })
+            });
+            fetchAndRenderPings(); // Rafraîchir immédiatement
+        };
+        
+        // --- Gérer la soumission du formulaire d'ajout/modification ---
+        modPingForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const target = document.getElementById('target').value;
+            const payload = {
+                action: 'add',
+                target: target,
+                mode: document.getElementById('mode').value,
+                interval: document.getElementById('interval').value,
+                target_count: document.getElementById('target_count').value
+            };
+            
+            await fetch('/api/mod-ping', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+            
+            modPingForm.reset();
+            fetchAndRenderPings(); // Rafraîchir
+        });
+
+        // --- Gérer le changement de mot de passe ---
+        changePasswordForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const new_password = document.getElementById('new_password').value;
+            
+            const response = await fetch('/api/change-password', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ new_password })
+            });
+
+            const result = await response.json();
+            passwordMessage.textContent = result.message;
+            passwordMessage.style.color = response.ok ? '#28a745' : '#dc3545';
+            
+            if(response.ok) {
+                changePasswordForm.reset();
+            }
+        });
+
+        // --- Lancer la récupération périodique ---
+        fetchAndRenderPings();
+        setInterval(fetchAndRenderPings, 3000); // Met à jour toutes les 3 secondes
+    });
+</script>
+
+</body>
+</html>
